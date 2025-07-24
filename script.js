@@ -1,4 +1,5 @@
 let tasks = [];
+let editTaskId = null;
 
 function addTask() {
     const taskName = document.getElementById('taskName').value;
@@ -10,12 +11,25 @@ function addTask() {
     }
 
     const deadline = new Date(deadlineInput).getTime();
-    const task = {
-        name: taskName,
-        deadline: deadline,
-        id: Date.now() + Math.random(),
-    };
-    tasks.push(task);
+
+    if (editTaskId !== null) {
+        // Edit mode
+        const task = tasks.find(t => t.id === editTaskId);
+        if (task) {
+            task.name = taskName;
+            task.deadline = deadline;
+            if (task.interval) clearInterval(task.interval);
+        }
+        editTaskId = null;
+    } else {
+        // Add mode
+        const task = {
+            name: taskName,
+            deadline: deadline,
+            id: Date.now() + Math.random(),
+        };
+        tasks.push(task);
+    }
     renderTasks();
     document.getElementById('taskName').value = '';
     document.getElementById('deadline').value = '';
@@ -24,12 +38,35 @@ function addTask() {
 function renderTasks() {
     const container = document.getElementById('tasksContainer');
     container.innerHTML = '';
-    tasks.forEach(task => {
+    tasks.forEach((task, idx) => {
         let taskDiv = document.createElement('div');
         taskDiv.className = 'taskDisplay';
         taskDiv.id = 'task-' + task.id;
+
+        // Numbering
+        let number = document.createElement('span');
+        number.setAttribute('role', 'number');
+        number.style.fontWeight = 'bold';
+        number.textContent = (idx + 1) + '. ';
+        taskDiv.appendChild(number);
+
+        // Task info
+        let info = document.createElement('span');
+        info.id = 'info-' + task.id;
+        info.className = 'task-info';
+        taskDiv.appendChild(info);
+
+        // Controls with icons
+        let controls = document.createElement('div');
+        controls.className = 'task-controls';
+        controls.innerHTML = `
+            <button class="icon-btn edit" title="Edit Task" onclick="editTask(${task.id})">✏️</button>
+            <button class="icon-btn remove" title="Remove Task" onclick="removeTask(${task.id})">🗑️</button>
+        `;
+        taskDiv.appendChild(controls);
+
         container.appendChild(taskDiv);
-        startCountdown(task, taskDiv);
+        startCountdown(task, info);
     });
 }
 
@@ -49,5 +86,24 @@ function startCountdown(task, element) {
         }
     }
     updateCountdown();
+    if (task.interval) clearInterval(task.interval);
     task.interval = setInterval(updateCountdown, 1000);
+}
+
+function removeTask(id) {
+    const idx = tasks.findIndex(t => t.id === id);
+    if (idx !== -1) {
+        if (tasks[idx].interval) clearInterval(tasks[idx].interval);
+        tasks.splice(idx, 1);
+        renderTasks();
+    }
+}
+
+function editTask(id) {
+    const task = tasks.find(t => t.id === id);
+    if (task) {
+        document.getElementById('taskName').value = task.name;
+        document.getElementById('deadline').value = new Date(task.deadline).toISOString().slice(0,16);
+        editTaskId = id;
+    }
 }
